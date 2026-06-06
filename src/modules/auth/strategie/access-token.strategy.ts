@@ -33,6 +33,10 @@ export class AtStrategy extends PassportStrategy(JwtStrategy, 'jwt') {
       throw new UnauthorizedException('User not found');
     }
 
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Account not verified, Please verify your email address');
+    }
+
     if (user.role === 'USER' && user.status === 'SUSPEND') {
       throw new BadRequestException(
         'Your account is suspended. Please contact with admin',

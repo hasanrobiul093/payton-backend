@@ -3,7 +3,7 @@ export const ERROR_MESSAGES = {
   AUTH: {
     INVALID_CREDENTIALS: 'Invalid email or password',
     INVALID_EMAIL: 'Invalid email',
-    INVALID_PASSWORD: 'Wrong Password',
+    INVALID_PASSWORD: 'Invalid Password',
     ACCOUNT_NOT_VERIFIED: 'Please verify your email address',
     ACCOUNT_SUSPENDED: 'Your account has been suspended',
     ACCOUNT_BANNED: 'Your account has been banned',

@@ -1,7 +1,7 @@
 export const SUCCESS_MESSAGES = {
   // Authentication
   AUTH: {
-    REGISTRATION_SUCCESS: 'Registration successful. Please verify your email',
+    REGISTRATION_SUCCESS: 'Registration successful. Please check your email to verify your account',
     LOGIN_SUCCESS: 'Login successful',
     LOGOUT_SUCCESS: 'Logout successful',
     EMAIL_VERIFIED: 'Email verified successfully',

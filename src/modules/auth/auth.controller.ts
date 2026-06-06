@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -22,11 +23,16 @@ import { RefreshTokenDto } from './dto/refresh.token.dto';
 import { GetCurrentUser } from 'src/common/decorator/get-current-user.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { sendResponse } from 'src/common/helpers/api-response.helper';
+import { ChangePasswordDto } from './dto/change.password.dto';
+import { VerifyOtpDto } from './dto/verify.otp.dto';
+import { ResendOtpDto } from './dto/resend.otp';
+import { ResetPasswordDto } from './dto/reset.password.dto';
+import { ForgetPasswordDto } from './dto/forget.password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
@@ -50,6 +56,58 @@ export class AuthController {
     return sendResponse(HttpStatus.OK, SUCCESS_MESSAGES.AUTH.LOGIN_SUCCESS, result);
   }
 
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password' })
+  @ApiOkResponse({ description: 'Password changed successfully' })
+  async changePassword(@Body() data: ChangePasswordDto, @GetCurrentUser() user: any) {
+    if (data.oldPassword === data.newPassword) {
+      throw new BadRequestException("Old password and new password cannot be the same");
+    }
+    await this.authService.changePassword(data, user?.userId);
+    return sendResponse(HttpStatus.OK, 'Password changed successfully');
+  }
+
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email' })
+  @ApiOkResponse({ description: 'Email verified successfully' })
+  async verifyEmail(@Body() data: VerifyOtpDto) {
+    await this.authService.verifyEmail(data.email, data.otp);
+    return sendResponse(HttpStatus.OK, 'Email verified successfully');
+  }
+
+  @Post('forget-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Forget password' })
+  @ApiOkResponse({ description: 'OTP send to your email' })
+  async forgetPassword(@Body() data: ForgetPasswordDto) {
+    await this.authService.forgotPassword(data);
+    return sendResponse(HttpStatus.OK, 'OTP sent to your email');
+  }
+
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend OTP' })
+  @ApiOkResponse({ description: 'OTP resent successfully' })
+  async resendOtp(@Body() data: ResendOtpDto) {
+    await this.authService.resendOTP(data);
+    return sendResponse(HttpStatus.OK, 'OTP resent successfully');
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with OTP' })
+  @ApiOkResponse({ description: 'Password reset successfully' })
+  async resetPasswordWithOTP(@Body() data: ResetPasswordDto) {
+    await this.authService.resetPasswordWithOTP(data);
+    return sendResponse(HttpStatus.OK, 'Password reset successfully');
+  }
+
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
@@ -60,15 +118,5 @@ export class AuthController {
     return sendResponse(HttpStatus.OK, 'Token refreshed successfully', result);
   }
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiOkResponse({ description: 'User profile fetched successfully' })
-  async getMe(@GetCurrentUser() user: any) {
-    const result = await this.authService.findUser(user?.userId);
-    return sendResponse(HttpStatus.OK, 'User profile fetched successfully', result);
-  }
 }
 
