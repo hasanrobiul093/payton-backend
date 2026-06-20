@@ -8,6 +8,7 @@ import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { GroupModule } from './modules/group/group.module';
+import { NotificationSettingsModule } from './modules/notification-settings/notification-settings.module';
 import envConfig from './config/env.config';
 
 @Module({
@@ -22,6 +23,7 @@ import envConfig from './config/env.config';
     UserModule,
     GroupModule,
     CloudinaryModule,
+    NotificationSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
