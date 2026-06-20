@@ -58,6 +58,9 @@ export class AuthService {
         password: hastPassword,
         lastOTP: hashedOtp,
         otpExpiredAt: verificationOtpExpiry,
+        settings: {
+          create: {}
+        }
       },
       select: {
         userId: true,
