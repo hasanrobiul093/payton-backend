@@ -52,6 +52,16 @@ model User {
   updatedAt DateTime @updatedAt
 
   settings UserSettings?
+
+  // Group relations
+  createdGroups  Group[]          @relation("GroupCreator")
+  memberships    GroupMember[]
+  sentInvites    GroupInvite[]    @relation("InviteSender")
+  receivedInvites GroupInvite[]   @relation("InviteReceiver")
+  messages       GroupMessage[]
+  reactions      MessageReaction[]
+  notifications  Notification[]
+  notificationPreferences NotificationPreference[]
 }
 
 model UserSettings {
@@ -72,3 +82,267 @@ model UserSettings {
 
   @@index([userId])
 }
+
+
+// ─── ENUMS ────────────────────────────────────────────────
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  REMOVED
+  LEFT
+  BANNED
+}
+
+enum InviteType {
+  USER     // Direct invite to a registered user
+  EMAIL    // Invite sent to an email address
+  CODE     // User joins via shared invite code
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  SYSTEM   // e.g. "John joined the group"
+}
+
+enum NotificationType {
+  BITE_ACTIVITY
+  GROUP_INTEL
+  WEATHER_ALERT
+  OFFLINE_SYNC_SUCCESS
+  OFFLINE_SYNC_FAILED
+  GROUP_MESSAGE
+}
+
+// ─── GROUP ────────────────────────────────────────────────
+
+model Group {
+  groupId     String   @id @default(uuid())
+  name        String
+  description String?
+  createdBy   String
+
+  inviteCode  String   @unique @default(cuid()) // rotating code
+  isPrivate   Boolean  @default(true)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator     User          @relation("GroupCreator", fields: [createdBy], references: [userId])
+  members     GroupMember[]
+  invites     GroupInvite[]
+  messages    GroupMessage[]
+
+  @@index([createdBy])
+  @@index([inviteCode])
+}
+
+// ─── GROUP MEMBER ─────────────────────────────────────────
+
+model GroupMember {
+  id      String      @id @default(uuid())
+  groupId String
+  userId  String
+
+  role    GroupRole   @default(MEMBER)
+  status  MemberStatus @default(ACTIVE)
+
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime? // for unread message badge count
+
+  isMuted     Boolean   @default(false)
+  mutedUntil  DateTime? // null = muted forever until unmuted
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  group   Group @relation(fields: [groupId], references: [groupId])
+  user    User  @relation(fields: [userId], references: [userId])
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+// ─── GROUP INVITE ─────────────────────────────────────────
+
+model GroupInvite {
+  id          String       @id @default(uuid())
+  groupId     String
+  invitedBy   String
+
+  type        InviteType
+  
+  // Only one of these is set depending on InviteType
+  inviteeUserId String?    // for InviteType.USER
+  inviteeEmail  String?    // for InviteType.EMAIL
+  inviteCode    String?    @unique // for InviteType.CODE (group-level code is on Group model)
+
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime?    // null = never expires (for CODE type)
+
+  acceptedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  group       Group  @relation(fields: [groupId], references: [groupId])
+  sender      User   @relation("InviteSender", fields: [invitedBy], references: [userId])
+  invitee     User?  @relation("InviteReceiver", fields: [inviteeUserId], references: [userId])
+
+  @@index([groupId])
+  @@index([invitedBy])
+  @@index([inviteeUserId])
+  @@index([inviteeEmail])
+  @@index([inviteCode])
+}
+
+// ─── GROUP MESSAGE ────────────────────────────────────────
+
+model GroupMessage {
+  messageId   String      @id @default(uuid())
+  groupId     String
+  senderId    String
+
+  content     String
+  type        MessageType @default(TEXT)
+
+  replyToId   String?     // thread/reply support
+  replyTo     GroupMessage? @relation("MessageReplies", fields: [replyToId], references: [messageId])
+  replies     GroupMessage[] @relation("MessageReplies")
+
+  isEdited    Boolean  @default(false)
+  isDeleted   Boolean  @default(false) // soft delete — keep for reply chains
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group     Group           @relation(fields: [groupId], references: [groupId])
+  sender    User            @relation(fields: [senderId], references: [userId])
+  reactions MessageReaction[]
+
+  @@index([groupId])
+  @@index([senderId])
+  @@index([replyToId])
+}
+
+// ─── MESSAGE REACTION ─────────────────────────────────────
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String   // store as unicode, e.g. "👍"
+
+  createdAt DateTime @default(now())
+
+  message GroupMessage @relation(fields: [messageId], references: [messageId])
+  user    User         @relation(fields: [userId], references: [userId])
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+// ─── NOTIFICATION ─────────────────────────────────────────
+
+model Notification {
+  notificationId String           @id @default(uuid())
+  userId         String
+
+  type           NotificationType
+  title          String
+  body           String
+
+  // Flexible payload: groupId, zoneId, reportId, etc.
+  metadata       Json             @default("{}")
+
+  deepLink       String?          // e.g. "app://zone/GOA-042"
+
+  isRead         Boolean          @default(false)
+  isSent         Boolean          @default(false) // push delivery confirmed
+
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([type])
+}
+
+// ─── NOTIFICATION PREFERENCE ──────────────────────────────
+
+model NotificationPreference {
+  id     String           @id @default(uuid())
+  userId String
+
+  type   NotificationType
+
+  isEnabled       Boolean @default(true)
+  cooldownMinutes Int     @default(60) // spam suppression window
+
+  // Stored as JSON for flexibility per type:
+  // BITE_ACTIVITY: { minReports: 3, withinDays: 7 }
+  // WEATHER_ALERT: { waveHeight: 6.0, windSpeed: 20.0 }
+  // GROUP_MESSAGE: { maxPerHour: 1 }
+  thresholds      Json    @default("{}")
+
+  // Quiet hours (stored as time string "22:00")
+  quietStart      String?
+  quietEnd        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// // ─── WATCHED ZONE ─────────────────────────────────────────
+
+// model WatchedZone {
+//   id          String @id @default(uuid())
+//   userId      String
+//   gridSquareId String  // e.g. "GOA-042"
+//   zoneName    String?  // human-readable label user gives it
+
+//   // What to watch
+//   watchBiteActivity Boolean @default(true)
+//   watchWeather      Boolean @default(false)
+
+//   // Bite thresholds (from NotificationPreference or override)
+//   biteThreshold     Int @default(3)  // min reports
+//   biteThresholdDays Int @default(7)  // within N days
+
+//   // Weather thresholds
+//   waveHeightThreshold Float? // in feet
+//   windSpeedThreshold  Float? // in mph
+
+//   lastNotifiedAt DateTime? // cooldown anchor
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   user User @relation(fields: [userId], references: [userId])
+
+//   @@unique([userId, gridSquareId])
+//   @@index([userId])
+//   @@index([gridSquareId])
+// }
