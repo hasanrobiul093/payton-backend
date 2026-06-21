@@ -140,11 +140,11 @@ export function setupSwagger(app: any, nodeEnv: string, port: number): void {
     .setTitle('NestJS Prisma Template API')
     .setDescription(
       'A production-ready NestJS + Prisma API template.\n\n' +
-        '**Base URL:** `http://localhost:{port}/api/v1`\n\n' +
         '**Auth:** Use the `POST /api/v1/auth/login` endpoint to obtain a Bearer token, ' +
         'then click **Authorize** above.',
     )
     .setVersion('1.0.0')
+    .addServer('/', 'Current Server')
     .addServer(`http://localhost:${port}`, 'Local Development')
     .addBearerAuth(
       {
@@ -157,6 +157,9 @@ export function setupSwagger(app: any, nodeEnv: string, port: number): void {
     )
     .addTag('Auth', 'Authentication & authorization endpoints')
     .addTag('User', 'User management endpoints')
+    .addTag('Group', 'Group management endpoints')
+    .addTag('Group Invites', 'Invite management: USER, EMAIL, CODE types')
+    .addTag('Group Messages', 'Real-time messaging (use Socket.IO — see /docs/socket)')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

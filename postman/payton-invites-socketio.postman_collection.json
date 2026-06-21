@@ -1,0 +1,352 @@
+{
+  "info": {
+    "name": "Payton Backend — Invites + Socket.IO Messaging",
+    "description": "Complete collection for testing Group Invites (REST) and Real-time Group Messaging (Socket.IO).\n\n## Setup\n1. Login via `POST /api/v1/auth/login` and copy the `accessToken`.\n2. Set the `{{token}}` variable in the collection.\n3. For Socket.IO events, use Postman's **Socket.IO** request type.\n\n## Socket.IO Connection\n- **URL:** `ws://{{baseUrl}}`\n- **Auth:** Pass `{ token: \"{{token}}\" }` in the `auth` object.\n\n## Three Invite Types\n- **USER** — Direct invite to a registered user (requires `inviteeUserId`)\n- **EMAIL** — Invite by email address (requires `inviteeEmail`)\n- **CODE** — Generate a shareable invite code/link",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "payton-invites-socketio-collection"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "groupId",
+      "value": "YOUR_GROUP_ID_HERE",
+      "type": "string"
+    },
+    {
+      "key": "inviteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "targetUserId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Part 3 — Group Invites (REST)",
+      "description": "All REST API endpoints for the three types of group invites.",
+      "item": [
+        {
+          "name": "Create Invite — USER Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"USER\",\n  \"inviteeUserId\": \"{{targetUserId}}\",\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/groups/{{groupId}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "groups", "{{groupId}}"]
+            },
+            "description": "Create a direct invite for a registered user.\n\n**Required fields:**\n- `type`: `USER`\n- `inviteeUserId`: UUID of the target user\n\n**Optional:**\n- `expiresAt`: ISO 8601 date string"
+          }
+        },
+        {
+          "name": "Create Invite — EMAIL Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"EMAIL\",\n  \"inviteeEmail\": \"friend@example.com\",\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/groups/{{groupId}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "groups", "{{groupId}}"]
+            },
+            "description": "Create an invite sent to an email address.\n\n**Required fields:**\n- `type`: `EMAIL`\n- `inviteeEmail`: Target email address\n\n**Optional:**\n- `expiresAt`: ISO 8601 date string"
+          }
+        },
+        {
+          "name": "Create Invite — CODE Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CODE\",\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/groups/{{groupId}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "groups", "{{groupId}}"]
+            },
+            "description": "Generate a shareable invite code.\n\nThe generated `inviteCode` can be shared as a link.\n\n**Optional:**\n- `expiresAt`: ISO 8601 date string"
+          }
+        },
+        {
+          "name": "List Group Invites",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/groups/{{groupId}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "groups", "{{groupId}}"]
+            },
+            "description": "List all invites for a specific group. Requires OWNER or ADMIN role."
+          }
+        },
+        {
+          "name": "My Pending Invites",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/my-pending",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "my-pending"]
+            },
+            "description": "List all pending invites received by the authenticated user."
+          }
+        },
+        {
+          "name": "Accept Invite",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/{{inviteId}}/accept",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "{{inviteId}}", "accept"]
+            },
+            "description": "Accept a pending invite. For USER type, only the intended invitee can accept. For EMAIL type, the user's email must match."
+          }
+        },
+        {
+          "name": "Decline Invite",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/{{inviteId}}/decline",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "{{inviteId}}", "decline"]
+            },
+            "description": "Decline a pending invite."
+          }
+        },
+        {
+          "name": "Revoke Invite",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/{{inviteId}}/revoke",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "{{inviteId}}", "revoke"]
+            },
+            "description": "Revoke a pending invite. For admin/owner use."
+          }
+        },
+        {
+          "name": "Join by Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"PASTE_INVITE_CODE_HERE\"\n}"
+            },
+            "url": {
+              "raw": "http://{{baseUrl}}/api/v1/invites/join",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "invites", "join"]
+            },
+            "description": "Join a group using an invite code (from CODE type invite) or a group-level invite code."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Part 4 — Socket.IO Messaging",
+      "description": "## How to test Socket.IO in Postman\n\n1. Create a new **Socket.IO** request in Postman.\n2. Set URL to `ws://{{baseUrl}}`\n3. Under **Events** tab, configure the events below.\n4. Under **Settings** > **Auth**, add: `{ \"token\": \"{{token}}\" }`\n5. Click **Connect**.\n\n---\n\n### Client → Server Events (you emit these)\n\n| Event | Payload |\n|-------|--------|\n| `joinGroup` | `{ \"groupId\": \"uuid\" }` |\n| `leaveGroup` | `{ \"groupId\": \"uuid\" }` |\n| `sendMessage` | `{ \"groupId\": \"uuid\", \"content\": \"Hello!\", \"type\": \"TEXT\", \"replyToId\": null }` |\n| `editMessage` | `{ \"messageId\": \"uuid\", \"groupId\": \"uuid\", \"content\": \"Edited!\" }` |\n| `deleteMessage` | `{ \"messageId\": \"uuid\", \"groupId\": \"uuid\" }` |\n| `reactMessage` | `{ \"messageId\": \"uuid\", \"groupId\": \"uuid\", \"emoji\": \"👍\" }` |\n| `typing` | `{ \"groupId\": \"uuid\", \"isTyping\": true }` |\n| `getMessages` | `{ \"groupId\": \"uuid\", \"cursor\": null, \"take\": 50 }` |\n| `getOnlineUsers` | `{ \"groupId\": \"uuid\" }` |\n\n### Server → Client Events (you listen to these)\n\n| Event | Description |\n|-------|------------|\n| `connected` | Emitted after successful authentication |\n| `newMessage` | New message in a group |\n| `messageEdited` | A message was edited |\n| `messageDeleted` | A message was deleted |\n| `messageReaction` | A reaction was added/removed |\n| `userTyping` | A user started/stopped typing |\n| `userJoinedRoom` | A user joined the group room |\n| `userLeftRoom` | A user left the group room |\n| `error` | Authentication or server error |",
+      "item": [
+        {
+          "name": "Socket.IO — Connect",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}/socket.io/?EIO=4&transport=polling",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"],
+              "path": ["socket.io", ""],
+              "query": [
+                {
+                  "key": "EIO",
+                  "value": "4"
+                },
+                {
+                  "key": "transport",
+                  "value": "polling"
+                }
+              ]
+            },
+            "description": "**⚠️ This is for reference only.**\n\nTo test Socket.IO properly, use Postman's **Socket.IO** request type (not HTTP).\n\n### Steps:\n1. Click **New** → **Socket.IO Request**\n2. URL: `ws://localhost:3000`\n3. Go to **Settings** tab\n4. Under **Auth** add JSON: `{ \"token\": \"YOUR_JWT_TOKEN\" }`\n5. Click **Connect**\n\n### Events to listen:\n- `connected`\n- `newMessage`\n- `messageEdited`\n- `messageDeleted`\n- `messageReaction`\n- `userTyping`\n- `error`"
+          }
+        },
+        {
+          "name": "Socket.IO — joinGroup",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `joinGroup`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Joined group your-group-uuid\"\n}\n```\n\n**Broadcasts:** `userJoinedRoom` to other group members."
+          }
+        },
+        {
+          "name": "Socket.IO — leaveGroup",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `leaveGroup`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Left group your-group-uuid\"\n}\n```\n\n**Broadcasts:** `userLeftRoom` to other group members."
+          }
+        },
+        {
+          "name": "Socket.IO — sendMessage",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `sendMessage`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\",\n  \"content\": \"Hello everyone!\",\n  \"type\": \"TEXT\",\n  \"replyToId\": null\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"messageId\": \"uuid\",\n    \"groupId\": \"uuid\",\n    \"senderId\": \"uuid\",\n    \"content\": \"Hello everyone!\",\n    \"type\": \"TEXT\",\n    \"createdAt\": \"2026-06-20T12:00:00.000Z\",\n    \"sender\": {\n      \"userId\": \"uuid\",\n      \"name\": \"John Doe\",\n      \"profileImage\": null\n    }\n  }\n}\n```\n\n**Broadcasts:** `newMessage` to all group room members."
+          }
+        },
+        {
+          "name": "Socket.IO — editMessage",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `editMessage`\n\n**Payload:**\n```json\n{\n  \"messageId\": \"your-message-uuid\",\n  \"groupId\": \"your-group-uuid\",\n  \"content\": \"Updated message content\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"data\": { ... updated message ... }\n}\n```\n\n**Broadcasts:** `messageEdited` to all group room members."
+          }
+        },
+        {
+          "name": "Socket.IO — deleteMessage",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `deleteMessage`\n\n**Payload:**\n```json\n{\n  \"messageId\": \"your-message-uuid\",\n  \"groupId\": \"your-group-uuid\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true\n}\n```\n\n**Broadcasts:** `messageDeleted` to all group room members."
+          }
+        },
+        {
+          "name": "Socket.IO — reactMessage",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `reactMessage`\n\n**Payload:**\n```json\n{\n  \"messageId\": \"your-message-uuid\",\n  \"groupId\": \"your-group-uuid\",\n  \"emoji\": \"👍\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"action\": \"added\",\n    \"messageId\": \"uuid\",\n    \"userId\": \"uuid\",\n    \"emoji\": \"👍\"\n  }\n}\n```\n\nToggle behavior: calling again with same emoji removes the reaction.\n\n**Broadcasts:** `messageReaction` to all group room members."
+          }
+        },
+        {
+          "name": "Socket.IO — typing",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `typing`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\",\n  \"isTyping\": true\n}\n```\n\n**No ack response.** Fire-and-forget.\n\n**Broadcasts:** `userTyping` to other group room members (excludes sender)."
+          }
+        },
+        {
+          "name": "Socket.IO — getMessages",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `getMessages`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\",\n  \"cursor\": null,\n  \"take\": 50\n}\n```\n\nFor subsequent pages, pass the `nextCursor` from the previous response as `cursor`.\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"messages\": [ ... ],\n    \"nextCursor\": \"uuid-or-null\",\n    \"hasMore\": true\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "Socket.IO — getOnlineUsers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://{{baseUrl}}",
+              "protocol": "http",
+              "host": ["{{baseUrl}}"]
+            },
+            "description": "**Socket.IO Event (not HTTP)**\n\n**Event:** `getOnlineUsers`\n\n**Payload:**\n```json\n{\n  \"groupId\": \"your-group-uuid\"\n}\n```\n\n**Response (Ack):**\n```json\n{\n  \"success\": true,\n  \"data\": [\"userId-1\", \"userId-2\"]\n}\n```"
+          }
+        }
+      ]
+    }
+  ]
+}

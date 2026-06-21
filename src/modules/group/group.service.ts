@@ -12,7 +12,7 @@ export class GroupService {
   constructor(private prisma: PrismaService) {}
 
   async createGroup(userId: string, data: CreateGroupDto) {
-    const inviteCode = randomBytes(6).toString('hex'); // Generate simple cuid alternative or leave it to DB default
+    const inviteCode = randomBytes(3).toString('hex'); // Generate simple cuid alternative or leave it to DB default
 
     const group = await this.prisma.group.create({
       data: {
@@ -117,7 +117,7 @@ export class GroupService {
   }
 
   async rotateInviteCode(groupId: string) {
-    const newCode = randomBytes(6).toString('hex');
+    const newCode = randomBytes(3).toString('hex');
     return this.prisma.group.update({
       where: { groupId },
       data: { inviteCode: newCode },

@@ -8,6 +8,8 @@ import { UserModule } from './modules/user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { GroupModule } from './modules/group/group.module';
+import { InviteModule } from './modules/invite/invite.module';
+import { MessageModule } from './modules/message/message.module';
 import { NotificationSettingsModule } from './modules/notification-settings/notification-settings.module';
 import envConfig from './config/env.config';
 
@@ -22,6 +24,8 @@ import envConfig from './config/env.config';
     AuthModule,
     UserModule,
     GroupModule,
+    InviteModule,
+    MessageModule,
     CloudinaryModule,
     NotificationSettingsModule,
   ],
