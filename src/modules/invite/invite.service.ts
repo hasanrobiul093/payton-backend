@@ -47,7 +47,7 @@ export class InviteService {
 
     // Check if the target user exists
     const targetUser = await this.prisma.user.findUnique({
-      where: { userId: dto.inviteeUserId },
+      where: { userId: dto.inviteeUserId, isDeleted: false },
     });
 
     if (!targetUser) {
@@ -147,7 +147,7 @@ export class InviteService {
   // ─── TYPE: CODE (Shareable invite code/link) ────────────
 
   private async createCodeInvite(groupId: string, invitedBy: string, dto: CreateInviteDto) {
-    const inviteCode = randomBytes(6).toString('hex'); // 12-char unique code
+    const inviteCode = randomBytes(3).toString('hex'); // 12-char unique code
 
     return this.prisma.groupInvite.create({
       data: {

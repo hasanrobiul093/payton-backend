@@ -73,7 +73,7 @@ export class GroupController {
   @Patch(':groupId/members/:userId/role')
   @UseGuards(GroupRoleGuard)
   @GroupRoles(GroupRole.OWNER)
-  @ApiOperation({ summary: 'Update member role (Owner only)' })
+  @ApiOperation({ summary: 'Update member role, enum(OWNER,ADMIN,MEMBER), (Owner only)' })
   updateMemberRole(
     @Param('groupId') groupId: string,
     @Param('userId') targetUserId: string,
