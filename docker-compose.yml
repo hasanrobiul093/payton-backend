@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  app:
+    image: payton-backend:latest # use pre-built image from registry
+    build:
+      # OR build locally (uncomment if no registry)
+      context: .
+      args:
+        - DATABASE_URL=postgresql://new_render_database_user:qoXGdjRXFiRQgpUg0b8IeAlQWdANb0RP@dpg-d8pr1ureo5us73ag3me0-a.oregon-postgres.render.com/new_render_database?sslmode=require
+    #   dockerfile: Dockerfile
+    container_name: payton-backend
+    restart: unless-stopped
+    ports:
+      - '8000:3000'
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    networks:
+      - payton-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: payton-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - payton-network
+    healthcheck:
+      test: [ 'CMD', 'redis-cli', 'ping' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  payton-network:
+    driver: bridge

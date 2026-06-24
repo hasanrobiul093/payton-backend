@@ -112,7 +112,8 @@ export function setupSecurity(
 ): void {
   app.use(
     helmet({
-      contentSecurityPolicy: nodeEnv === 'production' ? undefined : false,
+      contentSecurityPolicy: false,
+      crossOriginOpenerPolicy: false,
     }),
   );
   app.enableCors({
@@ -134,7 +135,7 @@ export function setupRequestLogging(app: any, logger: Logger): void {
 }
 
 export function setupSwagger(app: any, nodeEnv: string, port: number): void {
-  if (nodeEnv === 'production') return;
+  // if (nodeEnv === 'production') return;
 
   const config = new DocumentBuilder()
     .setTitle('NestJS Prisma Template API')
