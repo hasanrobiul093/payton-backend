@@ -8,7 +8,7 @@ import { UpsertPreferenceDto } from './dto/upsert-preference.dto';
 import { sendResponse } from 'src/common/helpers';
 
 @ApiTags('Notification Settings')
-@Controller('notification-settings')
+@Controller('notification-settings')  
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
 export class NotificationSettingsController {

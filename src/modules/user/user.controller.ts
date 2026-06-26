@@ -55,7 +55,7 @@ export class UserController {
     @GetCurrentUser() user: any,
     @Query() query: GetAllUsersQueryDto,
   ) {
-    const result = await this.userService.getAllUser(query);
-    return sendResponse(HttpStatus.OK, 'All users fetched successfully', result);
+    const { users, meta } = await this.userService.getAllUser(query);
+    return sendResponse(HttpStatus.OK, 'All users fetched successfully', users, meta);
   }
 }

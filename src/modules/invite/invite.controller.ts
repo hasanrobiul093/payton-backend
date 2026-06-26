@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   UseGuards,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InviteService } from './invite.service';
@@ -15,6 +16,7 @@ import { GroupRoles } from '../../common/decorator/group-roles.decorator';
 import { GroupRoleGuard } from '../../common/guards/group-role.guard';
 import { GroupRole } from '@prisma/client';
 import { CreateInviteDto, JoinByCodeDto } from './dto';
+import { sendResponse } from 'src/common/helpers';
 
 @ApiTags('Group Invites')
 @ApiBearerAuth('access-token')
@@ -29,62 +31,69 @@ export class InviteController {
   @UseGuards(GroupRoleGuard)
   @GroupRoles(GroupRole.OWNER, GroupRole.ADMIN)
   @ApiOperation({ summary: 'Create a new invite (USER, EMAIL, or CODE type)' })
-  createInvite(
+  async createInvite(
     @Param('groupId') groupId: string,
     @GetCurrentUser('userId') userId: string,
     @Body() dto: CreateInviteDto,
   ) {
-    return this.inviteService.createInvite(groupId, userId, dto);
+    const result = await this.inviteService.createInvite(groupId, userId, dto);
+    return sendResponse(HttpStatus.CREATED, 'Invite created successfully', result);
   }
 
   @Get('groups/:groupId')
   @UseGuards(GroupRoleGuard)
   @GroupRoles(GroupRole.OWNER, GroupRole.ADMIN)
   @ApiOperation({ summary: 'List all invites for a group' })
-  getGroupInvites(@Param('groupId') groupId: string) {
-    return this.inviteService.getGroupInvites(groupId);
+  async getGroupInvites(@Param('groupId') groupId: string) {
+    const result = await this.inviteService.getGroupInvites(groupId);
+    return sendResponse(HttpStatus.OK, 'Group invites fetched successfully', result);
   }
 
   @Delete(':inviteId/revoke')
   @ApiOperation({ summary: 'Revoke a pending invite (admin/owner)' })
-  revokeInvite(@Param('inviteId') inviteId: string) {
-    return this.inviteService.revokeInvite(inviteId);
+  async revokeInvite(@Param('inviteId') inviteId: string) {
+    const result = await this.inviteService.revokeInvite(inviteId);
+    return sendResponse(HttpStatus.OK, 'Invite revoked successfully', result);
   }
 
   // ─── RECEIVER ACTIONS ────────────────────────────────────
 
   @Get('my-pending')
   @ApiOperation({ summary: 'List my pending invites (received)' })
-  getMyPendingInvites(@GetCurrentUser('userId') userId: string) {
-    return this.inviteService.getMyPendingInvites(userId);
+  async getMyPendingInvites(@GetCurrentUser('userId') userId: string) {
+    const result = await this.inviteService.getMyPendingInvites(userId);
+    return sendResponse(HttpStatus.OK, 'Pending invites fetched successfully', result);
   }
 
   @Post(':inviteId/accept')
   @ApiOperation({ summary: 'Accept an invite (USER or EMAIL type)' })
-  acceptInvite(
+  async acceptInvite(
     @Param('inviteId') inviteId: string,
     @GetCurrentUser('userId') userId: string,
   ) {
-    return this.inviteService.acceptInvite(inviteId, userId);
+    const result = await this.inviteService.acceptInvite(inviteId, userId);
+    return sendResponse(HttpStatus.OK, 'Invite accepted successfully', result);
   }
 
   @Post(':inviteId/decline')
   @ApiOperation({ summary: 'Decline an invite' })
-  declineInvite(
+  async declineInvite(
     @Param('inviteId') inviteId: string,
     @GetCurrentUser('userId') userId: string,
   ) {
-    return this.inviteService.declineInvite(inviteId, userId);
+    const result = await this.inviteService.declineInvite(inviteId, userId);
+    return sendResponse(HttpStatus.OK, 'Invite declined successfully', result);
   }
 
   // ─── JOIN BY CODE ────────────────────────────────────────
 
   @Post('join')
   @ApiOperation({ summary: 'Join a group using an invite code or group code' })
-  joinByCode(
+  async joinByCode(
     @GetCurrentUser('userId') userId: string,
     @Body() dto: JoinByCodeDto,
   ) {
-    return this.inviteService.joinByCode(dto.inviteCode, userId);
+    const result = await this.inviteService.joinByCode(dto.inviteCode, userId);
+    return sendResponse(HttpStatus.OK, 'Joined group successfully', result);
   }
 }
