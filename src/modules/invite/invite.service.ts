@@ -361,6 +361,13 @@ export class InviteService {
             status: MemberStatus.ACTIVE,
             role: GroupRole.MEMBER,
           },
+          include: {
+            group: {
+              select: {
+                name: true,
+              },
+            },
+          },
         });
       } else {
         return tx.groupMember.create({
@@ -369,6 +376,13 @@ export class InviteService {
             userId,
             role: GroupRole.MEMBER,
             status: MemberStatus.ACTIVE,
+          },
+          include: {
+            group: {
+              select: {
+                name: true,
+              },
+            },
           },
         });
       }
