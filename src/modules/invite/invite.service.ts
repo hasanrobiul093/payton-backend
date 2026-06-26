@@ -41,55 +41,70 @@ export class InviteService {
   // ─── TYPE: USER (Direct invite to a registered user) ────
 
   private async createUserInvite(groupId: string, invitedBy: string, dto: CreateInviteDto) {
-    if (!dto.inviteeUserId) {
-      throw new BadRequestException('inviteeUserId is required for USER invite type');
+    if (!dto.inviteeUserIds || dto.inviteeUserIds.length === 0) {
+      throw new BadRequestException('inviteeUserIds is required for USER invite type');
     }
 
-    // Check if the target user exists
-    const targetUser = await this.prisma.user.findUnique({
-      where: { userId: dto.inviteeUserId, isDeleted: false },
+    // Check if all target users exist
+    const targetUsers = await this.prisma.user.findMany({
+      where: {
+        userId: { in: dto.inviteeUserIds },
+        isDeleted: false,
+      },
     });
 
-    if (!targetUser) {
-      throw new NotFoundException('Target user not found');
+    if (targetUsers.length !== dto.inviteeUserIds.length) {
+      throw new NotFoundException('One or more target users not found');
     }
 
-    // Check if the user is already a member
-    const existingMember = await this.prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: dto.inviteeUserId } },
-    });
-
-    if (existingMember && existingMember.status === MemberStatus.ACTIVE) {
-      throw new ConflictException('User is already an active member of this group');
-    }
-
-    // Check if there's already a pending invite for this user
-    const existingInvite = await this.prisma.groupInvite.findFirst({
+    // Check if any user is already a member
+    const existingMembers = await this.prisma.groupMember.findMany({
       where: {
         groupId,
-        inviteeUserId: dto.inviteeUserId,
+        userId: { in: dto.inviteeUserIds },
+        status: MemberStatus.ACTIVE,
+      },
+    });
+
+    if (existingMembers.length > 0) {
+      const existingUserIds = existingMembers.map(m => m.userId);
+      throw new ConflictException(`Users already active in the group: ${existingUserIds.join(', ')}`);
+    }
+
+    // Check if there's already a pending invite for these users
+    const existingInvites = await this.prisma.groupInvite.findMany({
+      where: {
+        groupId,
+        inviteeUserId: { in: dto.inviteeUserIds },
         status: InviteStatus.PENDING,
       },
     });
 
-    if (existingInvite) {
-      throw new ConflictException('A pending invite already exists for this user');
+    if (existingInvites.length > 0) {
+      const existingUserIds = existingInvites.map(i => i.inviteeUserId);
+      throw new ConflictException(`Pending invites already exist for users: ${existingUserIds.join(', ')}`);
     }
 
-    return this.prisma.groupInvite.create({
-      data: {
-        groupId,
-        invitedBy,
-        type: InviteType.USER,
-        inviteeUserId: dto.inviteeUserId,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
-      },
-      include: {
-        group: { select: { name: true } },
-        sender: { select: { name: true, email: true } },
-        invitee: { select: { name: true, email: true } },
-      },
-    });
+    const invites = await Promise.all(
+      dto.inviteeUserIds.map((userId) =>
+        this.prisma.groupInvite.create({
+          data: {
+            groupId,
+            invitedBy,
+            type: InviteType.USER,
+            inviteeUserId: userId,
+            expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+          },
+          include: {
+            group: { select: { name: true } },
+            sender: { select: { name: true, email: true } },
+            invitee: { select: { name: true, email: true } },
+          },
+        }),
+      ),
+    );
+
+    return invites;
   }
 
   // ─── TYPE: EMAIL (Invite sent to an email address) ──────

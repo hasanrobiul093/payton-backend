@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ERROR_MESSAGES } from 'src/common/constants';
 import { uploadImageToCloudinary } from 'src/common/helpers/cloudinary.helper';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { GetAllUsersQueryDto } from './dto/get-all-users-query.dto';
+import { MemberStatus } from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -50,5 +52,57 @@ export class UserService {
             },
         });
         return { message: 'Profile updated successfully' };
+    }
+
+    async getAllUser(query: GetAllUsersQueryDto) {
+        const { search, page = 1, limit = 10, groupId } = query;
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+            isDeleted: false,
+        };
+
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        if (groupId) {
+            where.memberships = {
+                none: {
+                    groupId,
+                    status: MemberStatus.ACTIVE,
+                },
+            };
+        }
+
+        const [users, total] = await Promise.all([
+            this.prisma.user.findMany({
+                where,
+                select: {
+                    userId: true,
+                    name: true,
+                    email: true,
+                    profileImage: true,
+                    role: true,
+                },
+                skip,
+                take: limit,
+                orderBy: { name: 'asc' },
+            }),
+            this.prisma.user.count({ where }),
+        ]);
+
+        return {
+            users,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 }

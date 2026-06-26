@@ -64,7 +64,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"USER\",\n  \"inviteeUserId\": \"{{targetUserId}}\",\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
+              "raw": "{\n  \"type\": \"USER\",\n  \"inviteeUserIds\": [\"{{targetUserId}}\"],\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
             },
             "url": {
               "raw": "http://{{baseUrl}}/api/v1/invites/groups/{{groupId}}",
@@ -72,7 +72,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "invites", "groups", "{{groupId}}"]
             },
-            "description": "Create a direct invite for a registered user.\n\n**Required fields:**\n- `type`: `USER`\n- `inviteeUserId`: UUID of the target user\n\n**Optional:**\n- `expiresAt`: ISO 8601 date string"
+            "description": "Create direct invites for registered users.\n\n**Required fields:**\n- `type`: `USER`\n- `inviteeUserIds`: Array of UUIDs of the target users\n\n**Optional:**\n- `expiresAt`: ISO 8601 date string"
           }
         },
         {

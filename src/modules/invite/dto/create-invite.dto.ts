@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsEmail, IsDateString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsEmail, IsDateString, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { InviteType } from '@prisma/client';
 
@@ -8,10 +8,11 @@ export class CreateInviteDto {
   @IsNotEmpty()
   type: InviteType;
 
-  @ApiPropertyOptional({ example: 'uuid-of-target-user', description: 'Required when type = USER' })
-  @IsString()
+  @ApiPropertyOptional({ type: [String], example: ['uuid-of-target-user'], description: 'Required when type = USER' })
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  inviteeUserId?: string;
+  inviteeUserIds?: string[];
 
   @ApiPropertyOptional({ example: 'john@example.com', description: 'Required when type = EMAIL' })
   @IsEmail()

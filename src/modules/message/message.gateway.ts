@@ -38,7 +38,7 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private jwtService: JwtService,
     private prisma: PrismaService,
     private messageService: MessageService,
-  ) {}
+  ) { }
 
   // ─── CONNECTION LIFECYCLE ──────────────────────────────
 
@@ -76,6 +76,20 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       this.logger.log(`Client connected: ${client.id} (User: ${user.name})`);
       client.emit('connected', { message: 'Connected successfully', userId: user.userId });
+
+      // Fetch the user's active groups
+      const userGroups = await this.prisma.groupMember.findMany({
+        where: { userId: user.userId, status: 'ACTIVE' },
+        select: { groupId: true }
+      });
+      this.logger.log('userGroups', userGroups);
+
+      // Join all rooms automatically
+      for (const group of userGroups) {
+        client.join(`group:${group.groupId}`);
+        this.logger.log(`Client ${client.id} joined group room: ${group.groupId}`);
+      }
+
     } catch (error: any) {
       this.logger.warn(`Client ${client.id} auth failed: ${error.message}`);
       client.emit('error', { message: 'Invalid token', code: 'UNAUTHORIZED' });
@@ -101,45 +115,69 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('joinGroup')
   async handleJoinGroup(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string },
+    @MessageBody() data: any,
   ) {
-    if (!client.userId) {
-      return { success: false, error: 'Not authenticated' };
+    try {
+      const parsedData = this.parsePayload<{ groupId: string }>(data);
+      this.logger.log(`joinGroup - parsedData: ${JSON.stringify(parsedData)}, userId: ${client.userId}`);
+
+      if (!client.userId) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      if (!parsedData || !parsedData.groupId) {
+        return { success: false, error: 'Group ID is required' };
+      }
+
+      const isMember = await this.messageService.verifyMembership(parsedData.groupId, client.userId);
+      if (!isMember) {
+        return { success: false, error: 'You are not a member of this group' };
+      }
+
+      client.join(`group:${parsedData.groupId}`);
+      this.logger.log(`User ${client.userName} joined group room: ${parsedData.groupId}`);
+
+      // Notify others in the room
+      client.to(`group:${parsedData.groupId}`).emit('userJoinedRoom', {
+        userId: client.userId,
+        name: client.userName,
+        groupId: parsedData.groupId,
+      });
+
+      return { success: true, message: `Joined group ${parsedData.groupId}` };
+    } catch (error: any) {
+      this.logger.error(`Error in joinGroup: ${error.message}`, error.stack);
+      return { success: false, error: error.message };
     }
-
-    const isMember = await this.messageService.verifyMembership(data.groupId, client.userId);
-    if (!isMember) {
-      return { success: false, error: 'You are not a member of this group' };
-    }
-
-    client.join(`group:${data.groupId}`);
-    this.logger.log(`User ${client.userName} joined group room: ${data.groupId}`);
-
-    // Notify others in the room
-    client.to(`group:${data.groupId}`).emit('userJoinedRoom', {
-      userId: client.userId,
-      name: client.userName,
-      groupId: data.groupId,
-    });
-
-    return { success: true, message: `Joined group ${data.groupId}` };
   }
 
   @SubscribeMessage('leaveGroup')
   async handleLeaveGroup(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string },
+    @MessageBody() data: any,
   ) {
-    client.leave(`group:${data.groupId}`);
-    this.logger.log(`User ${client.userName} left group room: ${data.groupId}`);
+    try {
+      const parsedData = this.parsePayload<{ groupId: string }>(data);
+      this.logger.log(`leaveGroup - parsedData: ${JSON.stringify(parsedData)}, userId: ${client.userId}`);
 
-    client.to(`group:${data.groupId}`).emit('userLeftRoom', {
-      userId: client.userId,
-      name: client.userName,
-      groupId: data.groupId,
-    });
+      if (!parsedData || !parsedData.groupId) {
+        return { success: false, error: 'Group ID is required' };
+      }
 
-    return { success: true, message: `Left group ${data.groupId}` };
+      client.leave(`group:${parsedData.groupId}`);
+      this.logger.log(`User ${client.userName} left group room: ${parsedData.groupId}`);
+
+      client.to(`group:${parsedData.groupId}`).emit('userLeftRoom', {
+        userId: client.userId,
+        name: client.userName,
+        groupId: parsedData.groupId,
+      });
+
+      return { success: true, message: `Left group ${parsedData.groupId}` };
+    } catch (error: any) {
+      this.logger.error(`Error in leaveGroup: ${error.message}`, error.stack);
+      return { success: false, error: error.message };
+    }
   }
 
   // ─── MESSAGING ─────────────────────────────────────────
@@ -147,25 +185,27 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string; content: string; type?: string; replyToId?: string },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    const parsedData = this.parsePayload<{ groupId: string; content: string; type?: string; replyToId?: string }>(data);
+
     try {
       const message = await this.messageService.createMessage(
-        data.groupId,
+        parsedData.groupId,
         client.userId,
         {
-          content: data.content,
-          type: (data.type as any) || 'TEXT',
-          replyToId: data.replyToId,
+          content: parsedData.content,
+          type: (parsedData.type as any) || 'TEXT',
+          replyToId: parsedData.replyToId,
         },
       );
 
       // Broadcast to everyone in the room (including sender)
-      this.server.to(`group:${data.groupId}`).emit('newMessage', message);
+      this.server.to(`group:${parsedData.groupId}`).emit('newMessage', message);
 
       return { success: true, data: message };
     } catch (error: any) {
@@ -176,20 +216,22 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('editMessage')
   async handleEditMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { messageId: string; groupId: string; content: string },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    const parsedData = this.parsePayload<{ messageId: string; groupId: string; content: string }>(data);
+
     try {
       const message = await this.messageService.editMessage(
-        data.messageId,
+        parsedData.messageId,
         client.userId,
-        { content: data.content },
+        { content: parsedData.content },
       );
 
-      this.server.to(`group:${data.groupId}`).emit('messageEdited', message);
+      this.server.to(`group:${parsedData.groupId}`).emit('messageEdited', message);
 
       return { success: true, data: message };
     } catch (error: any) {
@@ -200,18 +242,20 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('deleteMessage')
   async handleDeleteMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { messageId: string; groupId: string },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
-    try {
-      await this.messageService.deleteMessage(data.messageId, client.userId);
+    const parsedData = this.parsePayload<{ messageId: string; groupId: string }>(data);
 
-      this.server.to(`group:${data.groupId}`).emit('messageDeleted', {
-        messageId: data.messageId,
-        groupId: data.groupId,
+    try {
+      await this.messageService.deleteMessage(parsedData.messageId, client.userId);
+
+      this.server.to(`group:${parsedData.groupId}`).emit('messageDeleted', {
+        messageId: parsedData.messageId,
+        groupId: parsedData.groupId,
         deletedBy: client.userId,
       });
 
@@ -226,22 +270,24 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('reactMessage')
   async handleReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { messageId: string; groupId: string; emoji: string },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    const parsedData = this.parsePayload<{ messageId: string; groupId: string; emoji: string }>(data);
+
     try {
       const result = await this.messageService.addReaction(
-        data.messageId,
+        parsedData.messageId,
         client.userId,
-        { emoji: data.emoji },
+        { emoji: parsedData.emoji },
       );
 
-      this.server.to(`group:${data.groupId}`).emit('messageReaction', {
+      this.server.to(`group:${parsedData.groupId}`).emit('messageReaction', {
         ...result,
-        groupId: data.groupId,
+        groupId: parsedData.groupId,
         userName: client.userName,
       });
 
@@ -256,15 +302,17 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('typing')
   handleTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string; isTyping: boolean },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) return;
 
-    client.to(`group:${data.groupId}`).emit('userTyping', {
+    const parsedData = this.parsePayload<{ groupId: string; isTyping: boolean }>(data);
+
+    client.to(`group:${parsedData.groupId}`).emit('userTyping', {
       userId: client.userId,
       name: client.userName,
-      groupId: data.groupId,
-      isTyping: data.isTyping,
+      groupId: parsedData.groupId,
+      isTyping: parsedData.isTyping,
     });
   }
 
@@ -273,18 +321,20 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('getMessages')
   async handleGetMessages(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string; cursor?: string; take?: number },
+    @MessageBody() data: any,
   ) {
     if (!client.userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    const parsedData = this.parsePayload<{ groupId: string; cursor?: string; take?: number }>(data);
+
     try {
       const result = await this.messageService.getMessages(
-        data.groupId,
+        parsedData.groupId,
         client.userId,
-        data.cursor,
-        data.take,
+        parsedData.cursor,
+        parsedData.take,
       );
 
       return { success: true, data: result };
@@ -298,9 +348,10 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('getOnlineUsers')
   handleGetOnlineUsers(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string },
+    @MessageBody() data: any,
   ) {
-    const room = this.server.sockets.adapter.rooms.get(`group:${data.groupId}`);
+    const parsedData = this.parsePayload<{ groupId: string }>(data);
+    const room = this.server.sockets.adapter.rooms.get(`group:${parsedData.groupId}`);
     if (!room) return { success: true, data: [] };
 
     const onlineUserIds: string[] = [];
@@ -315,6 +366,18 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   // ─── HELPERS ───────────────────────────────────────────
+
+  private parsePayload<T>(data: any): T {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        this.logger.error(`Failed to parse payload string: ${data}`);
+        return data as unknown as T;
+      }
+    }
+    return data;
+  }
 
   private extractToken(client: Socket): string | null {
     // Try auth.token first (recommended)

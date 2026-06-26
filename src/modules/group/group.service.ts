@@ -68,7 +68,13 @@ export class GroupService {
           }
         },
         _count: {
-          select: { members: true },
+          select: {
+            members: {
+              where: {
+                status: MemberStatus.ACTIVE,
+              },
+            },
+          },
         },
       },
       orderBy: { updatedAt: 'desc' },
