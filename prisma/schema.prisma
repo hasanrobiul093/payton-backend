@@ -134,6 +134,7 @@ model Group {
   groupId     String   @id @default(uuid())
   name        String
   description String?
+  photo       String?
   createdBy   String
 
   inviteCode  String   @unique @default(cuid()) // rotating code

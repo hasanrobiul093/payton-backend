@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, HttpStatus } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, HttpStatus, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { GroupService } from './group.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../common/decorator/get-current-user.decorator';
@@ -21,8 +22,14 @@ export class GroupController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new group' })
-  async createGroup(@GetCurrentUser('userId') userId: string, @Body() data: CreateGroupDto) {
-    const result = await this.groupService.createGroup(userId, data);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('photo'))
+  async createGroup(
+    @GetCurrentUser('userId') userId: string,
+    @Body() data: CreateGroupDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const result = await this.groupService.createGroup(userId, data, file);
     return sendResponse(HttpStatus.CREATED, 'Group created successfully', result);
   }
 
@@ -45,8 +52,14 @@ export class GroupController {
   @UseGuards(GroupRoleGuard)
   @GroupRoles(GroupRole.OWNER, GroupRole.ADMIN)
   @ApiOperation({ summary: 'Update group details' })
-  async updateGroup(@Param('groupId') groupId: string, @Body() data: UpdateGroupDto) {
-    const result = await this.groupService.updateGroup(groupId, data);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('photo'))
+  async updateGroup(
+    @Param('groupId') groupId: string,
+    @Body() data: UpdateGroupDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const result = await this.groupService.updateGroup(groupId, data, file);
     return sendResponse(HttpStatus.OK, 'Group updated successfully', result);
   }
 

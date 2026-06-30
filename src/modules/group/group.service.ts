@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
@@ -6,18 +6,29 @@ import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { MuteGroupDto } from './dto/mute-group.dto';
 import { GroupRole, MemberStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { uploadImageToCloudinary } from '../../common/helpers/cloudinary.helper';
 
 @Injectable()
 export class GroupService {
   constructor(private prisma: PrismaService) {}
 
-  async createGroup(userId: string, data: CreateGroupDto) {
+  async createGroup(userId: string, data: CreateGroupDto, file?: Express.Multer.File) {
+    let photoUrl: string | undefined = undefined;
+    if (file) {
+      try {
+        photoUrl = await uploadImageToCloudinary(file.buffer);
+      } catch (error) {
+        throw new BadRequestException('Image upload failed');
+      }
+    }
+
     const inviteCode = randomBytes(3).toString('hex'); // Generate simple cuid alternative or leave it to DB default
 
     const group = await this.prisma.group.create({
       data: {
         name: data.name,
         description: data.description,
+        photo: photoUrl,
         isPrivate: data.isPrivate ?? true,
         createdBy: userId,
         members: {
@@ -108,10 +119,24 @@ export class GroupService {
     return group;
   }
 
-  async updateGroup(groupId: string, data: UpdateGroupDto) {
+  async updateGroup(groupId: string, data: UpdateGroupDto, file?: Express.Multer.File) {
+    let photoUrl: string | undefined = undefined;
+    if (file) {
+      try {
+        photoUrl = await uploadImageToCloudinary(file.buffer);
+      } catch (error) {
+        throw new BadRequestException('Image upload failed');
+      }
+    }
+
+    const updateData: any = { ...data };
+    if (photoUrl) {
+      updateData.photo = photoUrl;
+    }
+
     return this.prisma.group.update({
       where: { groupId },
-      data,
+      data: updateData,
     });
   }
 
