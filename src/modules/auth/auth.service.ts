@@ -20,9 +20,10 @@ import { AuthProvider, UserStatus } from '@prisma/client';
 import { ResendOtpDto } from './dto/resend.otp';
 import { ForgetPasswordDto } from './dto/forget.password.dto';
 import { ResetPasswordDto } from './dto/reset.password.dto';
-// import { initializeApp, getApps, cert } from 'firebase-admin/app';
-// import { getAuth } from 'firebase-admin/auth';
-// import { SocialLoginDto } from './dto/social.login.dto';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { SocialLoginDto } from './dto/social.login.dto';
+import { GoogleService } from './google.service';
 
 @Injectable()
 export class AuthService {
@@ -30,21 +31,22 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private readonly googleService: GoogleService
   ) {
-    // const env = this.configService.get<IEnv>('env');
-    // if (env?.FIREBASE_CONFIG?.FIREBASE_PROJECT_ID && !getApps().length) {
-    //   try {
-    //     initializeApp({
-    //       credential: cert({
-    //         projectId: env.FIREBASE_CONFIG.FIREBASE_PROJECT_ID,
-    //         clientEmail: env.FIREBASE_CONFIG.FIREBASE_CLIENT_EMAIL,
-    //         privateKey: env.FIREBASE_CONFIG.FIREBASE_PRIVATE_KEY,
-    //       }),
-    //     });
-    //   } catch (error) {
-    //     console.error('Firebase Admin initialization error', error);
-    //   }
-    // }
+    const env = this.configService.get<IEnv>('env');
+    if (env?.FIREBASE_CONFIG?.FIREBASE_PROJECT_ID && !getApps().length) {
+      try {
+        initializeApp({
+          credential: cert({
+            projectId: env.FIREBASE_CONFIG.FIREBASE_PROJECT_ID,
+            clientEmail: env.FIREBASE_CONFIG.FIREBASE_CLIENT_EMAIL,
+            privateKey: env.FIREBASE_CONFIG.FIREBASE_PRIVATE_KEY,
+          }),
+        });
+      } catch (error) {
+        console.error('Firebase Admin initialization error', error);
+      }
+    }
   }
 
   async hast(text: string) {
@@ -96,18 +98,26 @@ export class AuthService {
     return;
   }
 
-  /*
   async socialLogin(data: SocialLoginDto) {
     try {
-      const decodedToken = await getAuth().verifyIdToken(data.idToken);
-      const { email, name, uid, firebase } = decodedToken;
-      const signInProvider = firebase?.sign_in_provider;
+      let email: string | undefined;
+      let name: string | undefined;
+      let uid: string;
+      let picture: string | undefined;
+      const provider: AuthProvider = data.provider;
 
-      let provider: AuthProvider = AuthProvider.CUSTOM;
-      if (signInProvider === 'google.com') {
-        provider = AuthProvider.GOOGLE;
-      } else if (signInProvider === 'apple.com') {
-        provider = AuthProvider.APPLE;
+      if (provider === AuthProvider.GOOGLE) {
+        const profile = await this.googleService.verify(data.idToken);
+        email = profile.email;
+        name = profile.name;
+        uid = profile.sub;
+        picture = profile.picture;
+      } else if (provider === AuthProvider.APPLE) {
+        const decodedToken = await getAuth().verifyIdToken(data.idToken);
+        email = decodedToken.email;
+        name = decodedToken.name;
+        uid = decodedToken.uid;
+        picture = decodedToken.picture;
       } else {
         throw new BadRequestException('Unsupported sign-in provider');
       }
@@ -121,17 +131,24 @@ export class AuthService {
       });
 
       if (user) {
+        if (user.isDeleted) {
+          throw new ForbiddenException('Account has been deleted');
+        }
         if (user.status === UserStatus.SUSPEND) {
           throw new ForbiddenException('Account suspended');
         }
+        if (!user.isActive) {
+          throw new ForbiddenException('Account is inactive');
+        }
 
-        if (user.provider !== provider || user.providerId !== uid) {
+        if (user.provider !== provider || user.providerId !== uid || (picture && !user.profileImage)) {
           user = await this.prisma.user.update({
             where: { userId: user.userId },
             data: {
               provider,
               providerId: uid,
               isVerified: true,
+              ...(picture && !user.profileImage && { profileImage: picture }),
             },
           });
         }
@@ -143,6 +160,7 @@ export class AuthService {
             provider,
             providerId: uid,
             isVerified: true,
+            profileImage: picture || null,
             settings: {
               create: {},
             },
@@ -161,10 +179,10 @@ export class AuthService {
       ) {
         throw error;
       }
+      console.log("error :", error)
       throw new UnauthorizedException('Invalid or expired Firebase ID token');
     }
   }
-  */
 
   async signIn(data: LoginDto) {
     const { email } = data;

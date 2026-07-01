@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { AuthProvider } from '@prisma/client';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export class SocialLoginDto {
   @ApiProperty({
@@ -9,4 +10,13 @@ export class SocialLoginDto {
   @IsString()
   @IsNotEmpty()
   idToken: string;
+
+  @ApiProperty({
+    description: 'Provider (google/apple)',
+    example: AuthProvider.GOOGLE,
+  })
+  @IsEnum(AuthProvider)
+  @IsNotEmpty()
+  provider: AuthProvider;
+
 }
