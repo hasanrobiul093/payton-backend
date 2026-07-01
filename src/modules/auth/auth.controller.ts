@@ -19,6 +19,7 @@ import {
 import { UserSignUpDto } from './dto/user.singup.dto';
 import { SUCCESS_MESSAGES } from 'src/common/constants';
 import { LoginDto } from './dto/login.dto';
+// import { SocialLoginDto } from './dto/social.login.dto';
 import { RefreshTokenDto } from './dto/refresh.token.dto';
 import { GetCurrentUser } from 'src/common/decorator/get-current-user.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -55,6 +56,15 @@ export class AuthController {
     const result = await this.authService.signIn(data);
     return sendResponse(HttpStatus.OK, SUCCESS_MESSAGES.AUTH.LOGIN_SUCCESS, result);
   }
+
+  // @Post('social-login')
+  // @HttpCode(HttpStatus.OK)
+  // @ApiOperation({ summary: 'Social Login (Google/Apple)' })
+  // @ApiOkResponse({ description: 'Social Login successful' })
+  // async socialLogin(@Body() data: SocialLoginDto) {
+  //   const result = await this.authService.socialLogin(data);
+  //   return sendResponse(HttpStatus.OK, SUCCESS_MESSAGES.AUTH.LOGIN_SUCCESS, result);
+  // }
 
 
   @ApiBearerAuth('access-token')

@@ -40,6 +40,11 @@ export interface IEnv {
     SUPER_ADMIN_EMAIL: string;
     SUPER_ADMIN_PASSWORD: string;
   };
+  // FIREBASE_CONFIG: {
+  //   FIREBASE_PROJECT_ID: string;
+  //   FIREBASE_CLIENT_EMAIL: string;
+  //   FIREBASE_PRIVATE_KEY: string;
+  // };
 }
 
 const requiredEnv = [
@@ -68,6 +73,9 @@ const requiredEnv = [
   'PLATFORM_TAX_PERCENTAGE',
   'SUPER_ADMIN_EMAIL',
   'SUPER_ADMIN_PASSWORD',
+  // 'FIREBASE_PROJECT_ID',
+  // 'FIREBASE_CLIENT_EMAIL',
+  // 'FIREBASE_PRIVATE_KEY',
 ];
 // env Checker
 function envChecker() {
@@ -121,5 +129,11 @@ export default registerAs('env', (): IEnv => {
       SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL as string,
       SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD as string,
     },
+    // FIREBASE_CONFIG: {
+    //   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID as string,
+    //   FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL as string,
+    //   // Need to replace escaped newlines for the private key if it comes from a typical env string
+    //   FIREBASE_PRIVATE_KEY: (process.env.FIREBASE_PRIVATE_KEY as string)?.replace(/\\n/g, '\n'),
+    // },
   };
 });

@@ -45,3 +45,43 @@ export async function sendOtpEmail(to: string, otp: string, type: 'reset' | 'ver
     `,
     });
 }
+
+/**
+ * Send a group invite email with an invite code.
+ *
+ * @param to          - Recipient email address
+ * @param groupName   - Name of the group
+ * @param inviterName - Name of the user sending the invite
+ * @param inviteCode  - The unique invite code
+ */
+export async function sendGroupInviteEmail(
+    to: string,
+    groupName: string,
+    inviterName: string,
+    inviteCode: string,
+): Promise<void> {
+    const transporter = createTransporter();
+
+    const fromName = process.env.EMAIL_FROM_NAME || 'Payton';
+    const fromAddr = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+
+    await transporter.sendMail({
+        from: `"${fromName}" <${fromAddr}>`,
+        to,
+        subject: `You have been invited to join ${groupName}`,
+        text: `Hello!\n\n${inviterName} has invited you to join the group "${groupName}".\n\nUse the following invite code to join: ${inviteCode}\n\nIf you don't want to join, you can safely ignore this email.`,
+        html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 8px;">
+        <h2 style="color: #333;">Group Invitation</h2>
+        <p>Hello!</p>
+        <p><strong>${inviterName}</strong> has invited you to join the group <strong>"${groupName}"</strong>.</p>
+        <p>Use the following invite code to join the group:</p>
+        <div style="background: #f4f4f4; padding: 16px; text-align: center; border-radius: 8px; margin: 16px 0;">
+          <span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #222;">${inviteCode}</span>
+        </div>
+        <p style="color: #666; font-size: 14px;">Enter this code in the app to become a member of the group.</p>
+        <p style="color: #999; font-size: 12px; margin-top: 32px;">If you don't want to join, you can safely ignore this email.</p>
+      </div>
+    `,
+    });
+}

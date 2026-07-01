@@ -20,13 +20,32 @@ import { AuthProvider, UserStatus } from '@prisma/client';
 import { ResendOtpDto } from './dto/resend.otp';
 import { ForgetPasswordDto } from './dto/forget.password.dto';
 import { ResetPasswordDto } from './dto/reset.password.dto';
+// import { initializeApp, getApps, cert } from 'firebase-admin/app';
+// import { getAuth } from 'firebase-admin/auth';
+// import { SocialLoginDto } from './dto/social.login.dto';
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) { }
+  ) {
+    // const env = this.configService.get<IEnv>('env');
+    // if (env?.FIREBASE_CONFIG?.FIREBASE_PROJECT_ID && !getApps().length) {
+    //   try {
+    //     initializeApp({
+    //       credential: cert({
+    //         projectId: env.FIREBASE_CONFIG.FIREBASE_PROJECT_ID,
+    //         clientEmail: env.FIREBASE_CONFIG.FIREBASE_CLIENT_EMAIL,
+    //         privateKey: env.FIREBASE_CONFIG.FIREBASE_PRIVATE_KEY,
+    //       }),
+    //     });
+    //   } catch (error) {
+    //     console.error('Firebase Admin initialization error', error);
+    //   }
+    // }
+  }
 
   async hast(text: string) {
     const hash = await bcrypt.hash(text, 10);
@@ -76,6 +95,76 @@ export class AuthService {
 
     return;
   }
+
+  /*
+  async socialLogin(data: SocialLoginDto) {
+    try {
+      const decodedToken = await getAuth().verifyIdToken(data.idToken);
+      const { email, name, uid, firebase } = decodedToken;
+      const signInProvider = firebase?.sign_in_provider;
+
+      let provider: AuthProvider = AuthProvider.CUSTOM;
+      if (signInProvider === 'google.com') {
+        provider = AuthProvider.GOOGLE;
+      } else if (signInProvider === 'apple.com') {
+        provider = AuthProvider.APPLE;
+      } else {
+        throw new BadRequestException('Unsupported sign-in provider');
+      }
+
+      if (!email) {
+        throw new BadRequestException('Email is required from social provider');
+      }
+
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (user) {
+        if (user.status === UserStatus.SUSPEND) {
+          throw new ForbiddenException('Account suspended');
+        }
+
+        if (user.provider !== provider || user.providerId !== uid) {
+          user = await this.prisma.user.update({
+            where: { userId: user.userId },
+            data: {
+              provider,
+              providerId: uid,
+              isVerified: true,
+            },
+          });
+        }
+      } else {
+        user = await this.prisma.user.create({
+          data: {
+            name: name || email.split('@')[0],
+            email,
+            provider,
+            providerId: uid,
+            isVerified: true,
+            settings: {
+              create: {},
+            },
+          },
+        });
+      }
+
+      const tokens = await this.generateTokens(user.userId, user.email);
+      await this.updateRefreshToken(user.userId, tokens.refreshToken);
+
+      return tokens;
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid or expired Firebase ID token');
+    }
+  }
+  */
 
   async signIn(data: LoginDto) {
     const { email } = data;

@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { InviteType, InviteStatus, MemberStatus, GroupRole } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { sendGroupInviteEmail } from '../../common/helpers/mail.helper';
 
 @Injectable()
 export class InviteService {
@@ -142,12 +143,15 @@ export class InviteService {
       }
     }
 
-    return this.prisma.groupInvite.create({
+    const inviteCode = randomBytes(3).toString('hex');
+
+    const invite = await this.prisma.groupInvite.create({
       data: {
         groupId,
         invitedBy,
         type: InviteType.EMAIL,
         inviteeEmail: dto.inviteeEmail,
+        inviteCode,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       },
       include: {
@@ -156,7 +160,14 @@ export class InviteService {
       },
     });
 
-    // TODO: Send email notification to inviteeEmail with join link
+    await sendGroupInviteEmail(
+      dto.inviteeEmail,
+      invite.group.name,
+      invite.sender.name || invite.sender.email,
+      inviteCode,
+    );
+
+    return invite;
   }
 
   // ─── TYPE: CODE (Shareable invite code/link) ────────────
